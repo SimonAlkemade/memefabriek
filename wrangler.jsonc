@@ -12,10 +12,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "memefabriek",
-      // Fill in after `npx wrangler d1 create memefabriek` (see README).
-      "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "migrations"
+      // No database_id: the first deploy creates this database by itself.
+      "database_name": "memefabriek"
     }
   ],
   // The news desk: 07:00, 12:00, 17:00 and 21:00 Dutch summer time (cron runs in UTC).

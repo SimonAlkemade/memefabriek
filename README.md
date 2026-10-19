@@ -16,44 +16,38 @@ De code achter **memefabriek.nl**: memes van het laatste nieuws, en iedereen kan
 | `src/claude.ts` | De opdrachten aan Claude. Elk antwoord wordt gecontroleerd voordat het op de site komt. |
 | `src/memes.ts` | Controle van alles wat een bezoeker instuurt. |
 | `src/news.ts` | Het ophalen van de RSS-feeds van NOS en NU.nl. |
-| `migrations/` | De database (Cloudflare D1, SQLite). |
+| `src/schema.ts` | De database (Cloudflare D1, SQLite). Richt zichzelf in bij de eerste aanvraag. |
 
-## Online zetten op Cloudflare
+## Online zetten op Cloudflare (zonder terminal)
 
-Je hebt een gratis Cloudflare-account en een Anthropic API-sleutel nodig (console.anthropic.com).
+Je hebt een gratis Cloudflare-account nodig en een Anthropic API-sleutel (console.anthropic.com). De database wordt bij de eerste deploy vanzelf aangemaakt en ingericht.
+
+1. **Koppel de repo.** Cloudflare-dashboard → **Workers & Pages** → **Create** → **Import a repository** → kies GitHub en deze repo. Laat de voorgestelde instellingen staan (deploy-commando `npx wrangler deploy`) en klik **Deploy**. De site staat dan op `memefabriek.<jouw-naam>.workers.dev`.
+2. **Stel de geheimen in.** Open de Worker **memefabriek** → **Settings** → **Variables and Secrets** → **Add**, type **Secret**:
+   - `ANTHROPIC_API_KEY`: je Anthropic API-sleutel.
+   - `ADMIN_TOKEN`: een lange willekeurige tekst (minstens 16 tekens). Dit is je wachtwoord voor `/beheer`.
+   - `IP_SALT`: nog een willekeurige tekst.
+3. **Koppel memefabriek.nl.** Dashboard → **Add a domain** → `memefabriek.nl`, en zet bij je registrar de nameservers op de twee die Cloudflare geeft. Is het domein actief, ga dan naar de Worker → **Settings** → **Domains & Routes** → **Add** → **Custom domain** → `memefabriek.nl` (en eventueel `www.memefabriek.nl`).
+
+Elke push naar `main` zet daarna automatisch de nieuwe versie online.
+
+### Met de terminal
 
 ```bash
 npm install
 npx wrangler login
-
-# 1. Database aanmaken. Zet de database_id die je terugkrijgt in wrangler.jsonc.
-npx wrangler d1 create memefabriek
-
-# 2. Geheimen instellen (je wordt om de waarde gevraagd).
 npx wrangler secret put ANTHROPIC_API_KEY
-npx wrangler secret put ADMIN_TOKEN     # lange willekeurige tekst, minstens 16 tekens: je wachtwoord voor /beheer
-npx wrangler secret put IP_SALT         # nog een willekeurige tekst
-
-# 3. Database vullen en de site online zetten.
+npx wrangler secret put ADMIN_TOKEN
+npx wrangler secret put IP_SALT
 npm run deploy
 ```
-
-### memefabriek.nl koppelen
-
-1. Voeg `memefabriek.nl` toe in het Cloudflare-dashboard (**Add a domain**) en zet bij je registrar de nameservers op de twee die Cloudflare je geeft.
-2. Zet dit in `wrangler.jsonc` en draai `npm run deploy` opnieuw:
-   ```jsonc
-   "routes": [
-     { "pattern": "memefabriek.nl", "custom_domain": true },
-     { "pattern": "www.memefabriek.nl", "custom_domain": true }
-   ]
-   ```
 
 ### Spamcontrole (aanbevolen zodra de site druk wordt)
 
 Maak in Cloudflare een **Turnstile**-widget voor memefabriek.nl en stel de sleutels in:
 
 ```bash
+# of in het dashboard bij Variables and Secrets
 npx wrangler secret put TURNSTILE_SITE_KEY
 npx wrangler secret put TURNSTILE_SECRET
 ```
@@ -79,7 +73,6 @@ Stel daarnaast in de Anthropic Console een maandlimiet in, zodat de rekening noo
 
 ```bash
 cp .dev.vars.example .dev.vars   # en vul in
-npm run db:local
 npm run dev                      # http://localhost:8787
 npm test
 npm run typecheck

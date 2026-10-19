@@ -4,6 +4,7 @@
 import { GenerateError, memeForHeadline, memesForStories, replyMeme } from "./claude";
 import { parseHeadline, parseMeme, parseNickname, parseSource, type Meme } from "./memes";
 import { fetchStories } from "./news";
+import { ensureSchema } from "./schema";
 
 export interface Env {
   DB: D1Database;
@@ -356,6 +357,7 @@ async function handle(req: Request, env: Env): Promise<Response> {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     try {
+      await ensureSchema(env.DB);
       return await handle(req, env);
     } catch (e) {
       console.error(e);
@@ -363,6 +365,6 @@ export default {
     }
   },
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runNewsDesk(env).then((n) => console.log(`news desk: ${n} memes`)));
+    ctx.waitUntil(ensureSchema(env.DB).then(() => runNewsDesk(env)).then((n) => console.log(`news desk: ${n} memes`)));
   },
 } satisfies ExportedHandler<Env>;

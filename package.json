@@ -4,8 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler d1 migrations apply memefabriek --remote && wrangler deploy",
-    "db:local": "wrangler d1 migrations apply memefabriek --local",
+    "deploy": "wrangler deploy",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
