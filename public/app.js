@@ -38,10 +38,7 @@
   let turnstileReady = null;
   function loadTurnstile(siteKey) {
     turnstileReady = new Promise((resolve) => {
-      window.onTurnstileLoad = () => {
-        const id = window.turnstile.render("#turnstile", { sitekey: siteKey, execution: "execute", appearance: "interaction-only", "refresh-expired": "manual" });
-        resolve(id);
-      };
+      window.onTurnstileLoad = () => resolve(window.turnstile.render("#turnstile", { sitekey: siteKey, execution: "execute", appearance: "interaction-only", "refresh-expired": "manual" }));
       const s = document.createElement("script");
       s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit";
       s.async = true;
@@ -63,7 +60,11 @@
   }
 
   // ---------- state ----------
-  const S = { memes: [], next: null, open: new Set(), fresh: new Set(), claude: true };
+  const SORTS = ["hot", "new", "top"];
+  const S = {
+    sort: SORTS.includes(store.get("sort", "hot")) ? store.get("sort", "hot") : "hot",
+    memes: [], next: null, voted: new Set(), open: new Set(), fresh: new Set(), claude: true, shared: null, focus: null,
+  };
   const feed = $("feed");
 
   function ago(iso) {
@@ -76,26 +77,47 @@
     return d === 1 ? "gisteren" : d + " dagen geleden";
   }
   const who = (m) => (m.desk ? "de Nieuwsdesk" : m.nickname || "iemand");
+  const linkFor = (id) => location.origin + "/m/" + id;
 
-  async function load(more) {
+  // ---------- loading ----------
+  async function load(mode) {
+    // mode: "reset" (new sort), "more" (next page) or "poll" (refresh the first page in place)
+    const page = mode === "more" ? S.next ?? 0 : 0;
     try {
-      const data = await api("/api/feed" + (more && S.next ? "?before=" + encodeURIComponent(S.next) : ""));
-      if (more) {
+      const data = await api(`/api/feed?sort=${S.sort}&page=${page}`);
+      data.voted.forEach((id) => S.voted.add(id));
+      if (mode === "more") {
         const have = new Set(S.memes.map((m) => m.id));
         S.memes.push(...data.memes.filter((m) => !have.has(m.id)));
         S.next = data.next;
-      } else {
-        // Refresh the newest page and keep any older pages the visitor already loaded.
-        const last = data.memes.length ? data.memes[data.memes.length - 1].createdAt : "";
+      } else if (mode === "poll" && S.memes.length) {
         const prev = new Set(S.memes.map((m) => m.id));
-        if (S.memes.length) data.memes.forEach((m) => { if (!prev.has(m.id)) S.fresh.add(m.id); });
-        const older = data.next ? S.memes.filter((m) => m.createdAt < last) : [];
-        S.memes = [...data.memes, ...older];
-        if (!older.length) S.next = data.next;
+        data.memes.forEach((m) => { if (!prev.has(m.id)) S.fresh.add(m.id); });
+        const fresh = new Set(data.memes.map((m) => m.id));
+        S.memes = [...data.memes, ...S.memes.slice(data.memes.length).filter((m) => !fresh.has(m.id))];
+        if (S.next === null) S.next = data.next;
+      } else {
+        S.memes = data.memes;
+        S.next = data.next;
       }
       softRender();
+    } catch {
+      if (!S.memes.length) $("feed-empty").querySelector("span").textContent = "De memes konden niet worden geladen. Ververs de pagina om het opnieuw te proberen.";
+    }
+  }
+
+  async function loadShared(id) {
+    try {
+      const data = await api("/api/memes/" + id);
+      data.voted.forEach((v) => S.voted.add(v));
+      S.shared = data.meme;
+      S.focus = data.focus;
+      if (S.focus !== S.shared.id) S.open.add(S.shared.id);
+      render();
+      requestAnimationFrame(() => document.getElementById("r-" + S.focus)?.scrollIntoView({ block: "center" }) || $("shared").scrollIntoView());
     } catch (e) {
-      if (!S.memes.length) { $("feed-empty").querySelector("span").textContent = "De memes konden niet worden geladen. Ververs de pagina om het opnieuw te proberen."; }
+      $("shared").hidden = false;
+      $("shared-slot").textContent = e.message;
     }
   }
 
@@ -111,28 +133,59 @@
     return b;
   }
   function actionsFor(m) {
-    const row = [];
     if (mine.has(m.id)) {
-      row.push(confirmBtn("Verwijderen", "Nogmaals klikken om te verwijderen", async () => {
+      return [confirmBtn("Verwijderen", "Nogmaals klikken om te verwijderen", async () => {
         await api(`/api/memes/${m.id}/delete`, { deleteKey });
-        await load(false);
-      }));
-    } else if (!m.desk && !reported.has(m.id)) {
-      row.push(confirmBtn("Melden", "Nogmaals klikken om te melden", async () => {
+        await load("poll");
+      })];
+    }
+    if (!m.desk && !reported.has(m.id)) {
+      return [confirmBtn("Melden", "Nogmaals klikken om te melden", async () => {
         await api(`/api/memes/${m.id}/report`, {});
         remember(reported, "reported", m.id);
         render();
-      }));
+      })];
     }
-    return row;
+    return [];
   }
-  function shareBtn(m) {
-    const b = el("button", "btn ghost", "Link kopiëren"); b.type = "button";
+  function laughBtn(m, small) {
+    const b = el("button", "laugh" + (small ? " sm" : "")); b.type = "button";
+    const paint = () => {
+      const on = S.voted.has(m.id);
+      b.setAttribute("aria-pressed", String(on));
+      b.setAttribute("aria-label", `${on ? "Lach weghalen" : "Lachen"} (${m.score} ${m.score === 1 ? "lachje" : "lachjes"})`);
+      b.textContent = "";
+      b.append(el("span", "ha", "HAHA"), el("span", null, String(m.score)));
+    };
+    paint();
     b.addEventListener("click", async () => {
-      const url = location.origin + "/#m-" + m.id;
-      try { await navigator.clipboard.writeText(url); b.textContent = "Gekopieerd"; }
-      catch { location.hash = "m-" + m.id; b.textContent = "Kopieer de link uit de adresbalk"; }
-      setTimeout(() => (b.textContent = "Link kopiëren"), 2500);
+      const was = S.voted.has(m.id);
+      was ? S.voted.delete(m.id) : S.voted.add(m.id);
+      m.score = Math.max(0, m.score + (was ? -1 : 1));
+      paint();
+      if (!was) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); }
+      try {
+        const r = await api(`/api/memes/${m.id}/vote`, {});
+        r.voted ? S.voted.add(m.id) : S.voted.delete(m.id);
+        m.score = r.score;
+      } catch {
+        was ? S.voted.add(m.id) : S.voted.delete(m.id);
+        m.score = Math.max(0, m.score + (was ? 1 : -1));
+      }
+      paint();
+    });
+    return b;
+  }
+  function shareBtn(m, headline) {
+    const b = el("button", "btn ghost", "Delen"); b.type = "button";
+    b.addEventListener("click", async () => {
+      const url = linkFor(m.id);
+      if (navigator.share) {
+        try { await navigator.share({ title: "Memefabriek", text: headline ? `Meme over: ${headline}` : "Moet je zien", url }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+      }
+      try { await navigator.clipboard.writeText(url); b.textContent = "Link gekopieerd"; }
+      catch { history.replaceState(null, "", "/m/" + m.id); b.textContent = "Kopieer de link uit de adresbalk"; }
+      setTimeout(() => (b.textContent = "Delen"), 2500);
     });
     return b;
   }
@@ -174,7 +227,8 @@
         const { id } = await api(`/api/memes/${meme.id}/replies`, { ...m, nickname: nick, deleteKey, turnstileToken: await turnstileToken() });
         remember(mine, "mine", id);
         comp.clear(); status.textContent = "Geplaatst.";
-        await load(false);
+        if (S.shared && S.shared.id === meme.id) await loadShared(meme.id);
+        await load("poll");
       } catch (e) { status.className = "status err"; status.textContent = e.message; }
       post.disabled = false;
     });
@@ -182,65 +236,108 @@
     return wrap;
   }
 
+  function batch(m) {
+    const sec = el("article", "batch" + (S.fresh.has(m.id) ? " fresh" : ""));
+    const ticket = el("div", "ticket");
+    ticket.append(el("div", "no", m.desk ? "NIEUWSDESK" : "PERS"));
+    const txt = el("div", "txt");
+    txt.append(el("span", "label", "Uit het nieuws"), el("div", "hl", m.headline || "Zonder kop"));
+    const meta = el("div", "meta");
+    if (m.source && /^https:\/\//.test(m.source.url)) {
+      const a = el("a", null, m.source.host); a.href = m.source.url; a.target = "_blank"; a.rel = "noopener noreferrer nofollow ugc";
+      meta.append(a);
+    }
+    meta.append(el("span", null, "geperst door " + who(m) + " · " + ago(m.createdAt)));
+    txt.append(meta);
+    ticket.append(txt);
+    sec.append(ticket, renderMeme(m, "Meme over " + (m.headline || "het nieuws")));
+
+    const bar = el("div", "replies-head");
+    const left = el("div", "meta"); left.append(laughBtn(m), shareBtn(m, m.headline), ...actionsFor(m));
+    bar.append(left);
+    sec.append(bar);
+
+    const reps = (m.replies || []).filter((r) => !reported.has(r.id));
+    const head = el("div", "replies-head");
+    head.append(el("span", "label", reps.length ? `${reps.length} ${reps.length === 1 ? "reactie" : "reacties"}` : "Nog geen reacties. Wees de eerste."));
+    const rb = el("button", "btn" + (reps.length ? "" : " primary"), S.open.has(m.id) ? "Verberg reactievak" : "Reageer met een meme"); rb.type = "button";
+    rb.addEventListener("click", () => { S.open.has(m.id) ? S.open.delete(m.id) : S.open.add(m.id); render(); });
+    head.append(rb);
+    const repWrap = el("div", "replies");
+    repWrap.append(head);
+    if (S.open.has(m.id)) repWrap.append(replyBox(m));
+    if (reps.length) {
+      const grid = el("div", "reply-grid");
+      const best = reps[0].score >= 2 && (reps.length === 1 || reps[0].score > reps[1].score) ? reps[0].id : null;
+      reps.forEach((r) => {
+        const c = el("div", "reply" + (r.id === best ? " best" : ""));
+        c.id = "r-" + r.id;
+        if (r.id === best) c.append(el("span", "crown", "Beste reactie"));
+        c.append(renderMeme(r, "Reactie-meme"));
+        const mm = el("div", "meta");
+        mm.append(laughBtn(r, true), el("span", null, who(r) + " · " + ago(r.createdAt)), ...actionsFor(r));
+        c.append(mm); grid.append(c);
+      });
+      repWrap.append(grid);
+    }
+    sec.append(repWrap);
+    return sec;
+  }
+
   function render() {
-    $("feed-empty").hidden = S.memes.length > 0;
-    if (!S.memes.length) $("feed-empty").querySelector("span").textContent = "Nog geen memes. Pers de eerste uit een nieuwskop hierboven.";
+    document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-pressed", String(t.dataset.sort === S.sort)));
+    $("shared").hidden = !S.shared;
+    $("shared-slot").textContent = "";
+    if (S.shared) $("shared-slot").append(batch(S.shared));
+    const shown = S.memes.filter((m) => !reported.has(m.id) && !(S.shared && m.id === S.shared.id));
+    $("feed-empty").hidden = shown.length > 0;
+    if (!shown.length) $("feed-empty").querySelector("span").textContent = S.sort === "top" ? "Deze week heeft nog niemand gelachen. Begin jij?" : "Nog geen memes. Pers de eerste uit een nieuwskop hierboven.";
     $("more").hidden = !S.next;
     [...feed.querySelectorAll(".batch")].forEach((n) => n.remove());
-    S.memes.forEach((m) => {
-      const sec = el("article", "batch" + (S.fresh.has(m.id) ? " fresh" : ""));
-      sec.id = "m-" + m.id;
-      const ticket = el("div", "ticket");
-      ticket.append(el("div", "no", m.desk ? "NIEUWSDESK" : "PERS"));
-      const txt = el("div", "txt");
-      txt.append(el("span", "label", "Uit het nieuws"), el("div", "hl", m.headline || "Zonder kop"));
-      const meta = el("div", "meta");
-      if (m.source && /^https:\/\//.test(m.source.url)) {
-        const a = el("a", null, m.source.host); a.href = m.source.url; a.target = "_blank"; a.rel = "noopener noreferrer nofollow ugc";
-        meta.append(a);
-      }
-      meta.append(el("span", null, "geperst door " + who(m) + " · " + ago(m.createdAt)));
-      txt.append(meta);
-      ticket.append(txt);
-      sec.append(ticket, renderMeme(m, "Meme over " + (m.headline || "het nieuws")));
-
-      const reps = m.replies || [];
-      const head = el("div", "replies-head");
-      head.append(el("span", "label", reps.length ? `${reps.length} ${reps.length === 1 ? "reactie" : "reacties"}` : "Nog geen reacties"));
-      const right = el("div", "meta");
-      const rb = el("button", "btn", S.open.has(m.id) ? "Verberg reactievak" : "Reageer met een meme"); rb.type = "button";
-      rb.addEventListener("click", () => { S.open.has(m.id) ? S.open.delete(m.id) : S.open.add(m.id); render(); });
-      right.append(rb, shareBtn(m), ...actionsFor(m));
-      head.append(right);
-      const repWrap = el("div", "replies");
-      repWrap.append(head);
-      if (S.open.has(m.id)) repWrap.append(replyBox(m));
-      if (reps.length) {
-        const grid = el("div", "reply-grid");
-        reps.forEach((r) => {
-          if (reported.has(r.id)) return;
-          const c = el("div", "reply");
-          c.append(renderMeme(r, "Reactie-meme"));
-          const mm = el("div", "meta");
-          mm.append(el("span", null, who(r) + " · " + ago(r.createdAt)), ...actionsFor(r));
-          c.append(mm); grid.append(c);
-        });
-        repWrap.append(grid);
-      }
-      sec.append(repWrap);
-      if (!reported.has(m.id)) feed.append(sec);
-    });
+    shown.forEach((m) => { const b = batch(m); b.id = "m-" + m.id; feed.append(b); });
     S.fresh.clear();
   }
 
   // A timed refresh waits while someone is typing in a reply box, so focus is never pulled away.
   let pending = false;
   function softRender() {
-    if (feed.contains(document.activeElement) && document.activeElement.matches("input, select")) { pending = true; return; }
+    const a = document.activeElement;
+    if (a && a.matches("input, select") && (feed.contains(a) || $("shared").contains(a))) { pending = true; return; }
     pending = false;
     render();
   }
-  feed.addEventListener("focusout", () => setTimeout(() => { if (pending) softRender(); }, 0));
+  document.addEventListener("focusout", () => setTimeout(() => { if (pending) softRender(); }, 0));
+
+  // ---------- side column ----------
+  let press = null;
+  async function loadNews() {
+    const list = $("news");
+    try {
+      const { stories } = await api("/api/news");
+      list.textContent = "";
+      if (!stories.length) { list.append(el("li", "muted", "Het nieuws kon niet worden opgehaald. Plak zelf een kop.")); return; }
+      stories.forEach((s) => {
+        const li = el("li");
+        const b = el("button"); b.type = "button";
+        b.append(el("span", "t", s.title), el("span", "h", s.host));
+        b.addEventListener("click", () => press && press.use(s));
+        li.append(b); list.append(li);
+      });
+    } catch { list.textContent = ""; list.append(el("li", "muted", "Het nieuws kon niet worden opgehaald. Plak zelf een kop.")); }
+  }
+  async function loadLeaders() {
+    const list = $("leaders");
+    try {
+      const { leaders } = await api("/api/leaders");
+      list.textContent = "";
+      if (!leaders.length) { list.append(el("li", "muted", "Nog niemand deze week. De troon is vrij.")); return; }
+      leaders.forEach((l, i) => {
+        const li = el("li");
+        li.append(el("span", "rank", String(i + 1)), el("span", "n", l.nickname), el("span", "s", `${l.laughs} ${l.laughs === 1 ? "lachje" : "lachjes"}`));
+        list.append(li);
+      });
+    } catch { list.textContent = ""; list.append(el("li", "muted", "De ranglijst kon niet worden geladen.")); }
+  }
 
   // ---------- the press ----------
   function setupPress() {
@@ -252,14 +349,15 @@
       prev.textContent = "";
       prev.append(renderMeme(m.format !== "impact" || m.lines.some((l) => l.trim()) ? m : { ...example, scene: m.scene }, "Voorbeeld"));
     }, { format: "impact", scene: "stonks", lines: [] });
-    ai.addEventListener("click", async () => {
+    async function write() {
       const h = head.value.trim();
       if (!h) { status.className = "status err"; status.textContent = "Plak eerst een nieuwskop."; head.focus(); return; }
       ai.disabled = true; status.className = "status"; status.textContent = "Claude leest het nieuws…";
       try { comp.set((await api("/api/generate", { headline: h })).meme); status.textContent = "Pas de tekst aan als je wilt en zet hem op de band."; }
       catch (e) { status.className = "status err"; status.textContent = e.message; }
       ai.disabled = false;
-    });
+    }
+    ai.addEventListener("click", write);
     post.addEventListener("click", async () => {
       const nick = nickname(status); if (!nick) return;
       const h = head.value.trim(), m = comp.get();
@@ -270,22 +368,44 @@
         const { id } = await api("/api/memes", { ...m, headline: h, sourceUrl: url.value.trim(), nickname: nick, deleteKey, turnstileToken: await turnstileToken() });
         remember(mine, "mine", id);
         head.value = ""; url.value = ""; comp.clear(); status.textContent = "Staat op de band.";
-        await load(false);
+        if (S.sort !== "new") { S.sort = "new"; store.set("sort", "new"); }
+        await load("reset");
         $("m-" + id)?.scrollIntoView({ behavior: "smooth" });
       } catch (e) { status.className = "status err"; status.textContent = e.message; }
       post.disabled = false;
     });
+    return {
+      use(story) {
+        head.value = story.title; url.value = story.url;
+        $("press").scrollIntoView({ behavior: "smooth", block: "start" });
+        status.className = "status";
+        status.textContent = S.claude ? "Kop ingevuld. Schrijf zelf de grap, of laat Claude het doen." : "Kop ingevuld. Schrijf nu de grap.";
+        head.focus({ preventScroll: true });
+      },
+    };
   }
 
   // ---------- boot ----------
-  $("more").addEventListener("click", () => load(true));
+  document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
+    if (S.sort === t.dataset.sort) return;
+    S.sort = t.dataset.sort; store.set("sort", S.sort);
+    S.memes = []; S.next = null; render();
+    load("reset");
+  }));
+  $("more").addEventListener("click", () => load("more"));
+  render();
   api("/api/config").then((c) => {
     S.claude = Boolean(c.claude);
     if (c.turnstileSiteKey) loadTurnstile(c.turnstileSiteKey);
   }).catch(() => {}).finally(() => {
-    setupPress();
-    load(false).then(() => { if (location.hash.startsWith("#m-")) $(location.hash.slice(1))?.scrollIntoView(); });
+    press = setupPress();
+    const shared = location.pathname.match(/^\/m\/([0-9a-f-]{36})$/) || location.hash.match(/^#m-([0-9a-f-]{36})$/);
+    if (shared) loadShared(shared[1]);
+    load("reset");
+    loadNews();
+    loadLeaders();
   });
-  setInterval(() => { if (document.visibilityState === "visible") load(false); }, 30000);
+  setInterval(() => { if (document.visibilityState === "visible") load("poll"); }, 30000);
+  setInterval(() => { if (document.visibilityState === "visible") loadLeaders(); }, 300000);
   setInterval(softRender, 60000);
 })();

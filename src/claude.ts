@@ -13,6 +13,8 @@ const FORMAT_GUIDE = `Formaten (kies het formaat waarin de grap het best landt):
 - "brain": groeiend brein, vier steeds absurdere stappen. lines: [1, 2, 3, 4].
 - "nobody": "Niemand: / Helemaal niemand: / X: doet Y". lines: [wie X is, wat X doet].
 - "expect": verwachting tegenover werkelijkheid. lines: [verwachting, werkelijkheid]. "scene" is het werkelijkheid-plaatje.
+- "buttons": iemand zweet bij twee knoppen en kan niet kiezen. lines: [knop links, knop rechts, wie er twijfelt].
+- "mind": iemand zit achter een tafel met een bord "Verander mijn mening". lines: [de stelling op het bord].
 Scenes: "fire" (kamer in brand, "this is fine"), "stonks" (rode grafiek die crasht), "rain" (sombere regenwolk), "spotlight" (triomfantelijk podium), "space" (kosmisch).`;
 
 const RULES = `Regels:

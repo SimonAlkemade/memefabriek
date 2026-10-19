@@ -8,7 +8,9 @@
 <meta property="og:title" content="Memefabriek">
 <meta property="og:description" content="Memes van het laatste nieuws. Reageer op elke meme met een meme.">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Memefabriek">
 <meta property="og:url" content="https://memefabriek.nl/">
+<meta name="twitter:card" content="summary">
 <meta name="theme-color" content="#ffc81e">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,11 +20,11 @@
 </head>
 <body>
 <div class="hazard" aria-hidden="true"></div>
-<div class="wrap">
+<div class="shell">
   <header class="mast">
-    <div class="label">memefabriek.nl &middot; draait op het nieuws van vandaag</div>
+    <a class="label home" href="/">memefabriek.nl &middot; draait op het nieuws van vandaag</a>
     <h1>Meme<span>fabriek</span></h1>
-    <p>Elke meme op de band komt uit een echt nieuwsbericht. Scroll door de lading en reageer op elke meme met een meme van jezelf.</p>
+    <p>Elke meme op de band komt uit een echt nieuwsbericht. Lach om de beste, en reageer op elke meme met een meme van jezelf.</p>
     <div class="nick field">
       <label class="label" for="nickname">Je bijnaam</label>
       <input type="text" id="nickname" maxlength="30" autocomplete="nickname" placeholder="Bijvoorbeeld: Memekoning">
@@ -37,7 +39,7 @@
       <div class="press-fields">
         <div class="field">
           <label class="label" for="np-headline">Nieuwskop</label>
-          <input type="text" id="np-headline" maxlength="200" placeholder="Plak een kop uit het nieuws van vandaag">
+          <input type="text" id="np-headline" maxlength="200" placeholder="Plak een kop, of kies er een uit Nieuws van nu">
         </div>
         <div class="field">
           <label class="label" for="np-url">Bronlink (mag leeg blijven)</label>
@@ -57,15 +59,38 @@
     </div>
   </section>
 
-  <main class="feed" id="feed" aria-live="polite">
-    <div class="empty" id="feed-empty">
-      <strong>De band draait warm</strong>
-      <span>De memes van vandaag laden hier.</span>
-    </div>
-  </main>
-  <button class="btn more" id="more" type="button" hidden>Oudere memes laden</button>
+  <aside class="side">
+    <section class="card" aria-labelledby="news-title">
+      <h2 class="card-title" id="news-title">Nieuws van nu</h2>
+      <p class="card-sub">Kies een kop en maak er een meme van.</p>
+      <ol class="news" id="news"><li class="muted">Laden…</li></ol>
+    </section>
+    <section class="card" aria-labelledby="leaders-title">
+      <h2 class="card-title" id="leaders-title">Memekoningen van de week</h2>
+      <p class="card-sub">Wie de meeste lachjes oogstte.</p>
+      <ol class="leaders" id="leaders"><li class="muted">Laden…</li></ol>
+    </section>
+  </aside>
 
-  <footer>Memes zijn satire over openbaar nieuws. We trappen naar boven, nooit naar slachtoffers. Zie je iets dat niet kan? Gebruik "Melden".</footer>
+  <main class="stream">
+    <section class="shared" id="shared" hidden aria-label="Gedeelde meme">
+      <div class="shared-head"><span class="label">Gedeeld met jou</span><a class="btn ghost" href="/">Naar alle memes</a></div>
+      <div id="shared-slot"></div>
+    </section>
+    <nav class="tabs" aria-label="Sorteer memes">
+      <button type="button" class="tab" data-sort="hot">Hot</button>
+      <button type="button" class="tab" data-sort="new">Nieuw</button>
+      <button type="button" class="tab" data-sort="top">Top van de week</button>
+    </nav>
+    <div class="feed" id="feed" aria-live="polite">
+      <div class="empty" id="feed-empty">
+        <strong>De band draait warm</strong>
+        <span>De memes van vandaag laden hier.</span>
+      </div>
+    </div>
+    <button class="btn more" id="more" type="button" hidden>Meer memes laden</button>
+    <footer>Memes zijn satire over openbaar nieuws. We trappen naar boven, nooit naar slachtoffers. Zie je iets dat niet kan? Gebruik "Melden".</footer>
+  </main>
 </div>
 <div id="turnstile" hidden></div>
 

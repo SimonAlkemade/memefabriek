@@ -7,6 +7,8 @@ export const FORMATS = {
   brain: 4, // groeiend brein
   nobody: 2, // "Niemand: / Ik: ..."
   expect: 2, // verwachting / werkelijkheid
+  buttons: 3, // twee knoppen: [knop links, knop rechts, wie twijfelt]
+  mind: 1, // "Verander mijn mening": [stelling]
 } as const;
 export type Format = keyof typeof FORMATS;
 

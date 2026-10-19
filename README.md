@@ -5,6 +5,11 @@ De code achter **memefabriek.nl**: memes van het laatste nieuws, en iedereen kan
 - Iedereen kan zonder account een meme posten of reageren, met een zelfgekozen bijnaam.
 - De **Nieuwsdesk** leest vier keer per dag NOS en NU.nl en laat Claude er memes van maken. Pijnlijk nieuws (doden, oorlog, rampen) slaat hij over.
 - Bezoekers kunnen Claude een meme laten schrijven bij een kop die ze zelf plakken, of een reactie op een andere meme.
+- **Lachjes:** bezoekers stemmen op memes en reacties. De feed sorteert op **Hot**, **Nieuw** of **Top van de week**, en de reactie met de meeste lachjes krijgt de kroon **Beste reactie**.
+- **Nieuws van nu:** de laatste koppen van NOS en NU.nl staan naast de feed. Eén klik en de kop staat in de memepers.
+- **Memekoningen van de week:** een ranglijst van wie de meeste lachjes oogstte.
+- **Delen:** elke meme heeft een eigen link (`/m/<id>`) met een nette preview in WhatsApp, X en Telegram.
+- Zeven formaten: boven- en ondertekst, Nee/Ja, groeiend brein, Niemand:, verwachting/werkelijkheid, twee knoppen, en verander mijn mening.
 - Een meme met 3 meldingen verdwijnt vanzelf. Via `/beheer` zet je hem terug of verwijder je hem.
 
 ## Hoe het in elkaar zit

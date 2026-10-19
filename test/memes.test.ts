@@ -41,3 +41,12 @@ describe("visitor fields", () => {
     expect(parseSource("https://www.nu.nl/a")).toEqual({ ok: true, value: { url: "https://www.nu.nl/a", host: "nu.nl" } });
   });
 });
+
+describe("newer formats", () => {
+  it("knows the two-buttons and change-my-mind formats", () => {
+    const b = parseMeme({ format: "buttons", lines: ["Thuiswerken", "Naar kantoor", "Elke Nederlander"] });
+    expect(b.ok && b.value.lines).toEqual(["Thuiswerken", "Naar kantoor", "Elke Nederlander"]);
+    const m = parseMeme({ format: "mind", lines: ["Hagelslag is beleg", "extra"] });
+    expect(m.ok && m.value.lines).toEqual(["Hagelslag is beleg"]);
+  });
+});

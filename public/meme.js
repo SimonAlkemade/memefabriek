@@ -7,6 +7,8 @@ window.MemeKit = (() => {
     brain: { name: "Groeiend brein", fields: ["Klein brein", "Groter brein", "Stralend brein", "Galaxybrein"] },
     nobody: { name: "Niemand:", fields: ["Wie", "Doet wat"] },
     expect: { name: "Verwachting / Werkelijkheid", fields: ["Verwachting", "Werkelijkheid"], scene: true },
+    buttons: { name: "Twee knoppen", fields: ["Knop links", "Knop rechts", "Wie twijfelt"] },
+    mind: { name: "Verander mijn mening", fields: ["Stelling op het bord"] },
   };
   const SCENES = { fire: "Alles staat in brand", stonks: "Grafiek die keldert", rain: "Regenwolk", spotlight: "Spotlight", space: "De ruimte" };
   const MAXLEN = 120;
@@ -48,6 +50,24 @@ window.MemeKit = (() => {
     s.innerHTML = inner.replace(/id="(\w)"/g, `id="$1${id}"`).replace(/url\(#(\w)\)/g, `url(#$1${id})`);
     return s;
   }
+  // Someone wiping their forehead, sweat flying: the "two buttons" dilemma.
+  const sweatSvg = () => svg(`<rect width="100" height="100" fill="#f3e6c8"/>
+    <path d="M18 100 C20 74 36 66 50 66 C64 66 80 74 82 100Z" fill="#2f5d8a"/>
+    <circle cx="50" cy="42" r="20" fill="#f1c7a0"/>
+    <path d="M30 36 C32 18 68 18 70 36 C62 28 40 28 30 36Z" fill="#5a3a22"/>
+    <circle cx="43" cy="42" r="2.2" fill="#222"/><circle cx="57" cy="42" r="2.2" fill="#222"/>
+    <path d="M43 53 Q50 49 57 53" fill="none" stroke="#7a3b2b" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M62 30 C74 26 82 34 80 44 L74 46 C74 38 70 34 62 34Z" fill="#f1c7a0"/>
+    <g fill="#7cc4f2"><path d="M30 30 q-3 5 0 7 q3 -2 0 -7Z"/><path d="M24 44 q-3 5 0 7 q3 -2 0 -7Z"/><path d="M76 22 q-3 5 0 7 q3 -2 0 -7Z"/><path d="M84 34 q-3 5 0 7 q3 -2 0 -7Z"/></g>`);
+  // A table with a sign on it, someone behind it with a mug.
+  const mindSvg = () => { const s = svg(`<rect width="100" height="100" fill="#cfd8c4"/>
+    <rect x="0" y="0" width="100" height="58" fill="#9fb48f"/>
+    <path d="M60 58 C60 36 70 30 80 30 C90 30 98 36 98 58Z" fill="#3c4a5a"/>
+    <circle cx="80" cy="20" r="10" fill="#e9b98f"/><path d="M70 18 C70 8 90 8 90 18 C86 13 74 13 70 18Z" fill="#3a2a1a"/>
+    <rect x="86" y="46" width="7" height="9" rx="1.5" fill="#f4f4f4"/><path d="M93 48 q4 2 0 5" fill="none" stroke="#f4f4f4" stroke-width="1.4"/>
+    <rect x="0" y="56" width="100" height="6" fill="#7a5134"/>
+    <rect x="4" y="62" width="4" height="38" fill="#5e3d26"/><rect x="92" y="62" width="4" height="38" fill="#5e3d26"/>
+    <rect x="12" y="30" width="62" height="34" fill="#fafafa" stroke="#888" stroke-width=".6" transform="rotate(-2 43 47)"/>`); s.classList.add("scene"); return s; };
   const sceneEl = (name) => { const s = svg(SCENE_SVG[name] || SCENE_SVG.spotlight); s.classList.add("scene"); return s; };
   const verdictSvg = (yes) => svg(yes
     ? `<rect width="100" height="100" fill="#d9f2e2"/><circle cx="50" cy="50" r="30" fill="#1f8a4c"/><path d="M36 51 l10 10 18 -22" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`
@@ -110,7 +130,10 @@ window.MemeKit = (() => {
       const b = el("div", "ln"); b.append(el("b", null, "Helemaal niemand:"));
       const c = el("div", "ln"); c.append(el("b", null, (L[0] || "Ik") + ": "), document.createTextNode(L[1]));
       c.style.fontSize = sizeFor(L[1], 6.4) + "cqi";
-      box.append(a, b, el("div", "gap"), c);
+      // Padding lives on an inner layer: on the container itself, cqi would size it against the page.
+      const inner = el("div", "nb");
+      inner.append(a, b, el("div", "gap"), c);
+      box.append(inner);
     } else if (m.format === "expect") {
       ["Verwachting", "Werkelijkheid"].forEach((tag, i) => {
         const p = el("div", "panel");
@@ -118,6 +141,24 @@ window.MemeKit = (() => {
         const cap = el("div", "cap", L[i]); cap.style.fontSize = sizeFor(L[i], 7) + "cqi";
         p.append(pic, el("span", "tag", tag), cap); box.append(p);
       });
+    } else if (m.format === "buttons") {
+      const top = el("div", "console");
+      [0, 1].forEach((i) => {
+        const k = el("div", "knob", L[i]);
+        k.style.fontSize = sizeFor(L[i], 4.6) + "cqi";
+        top.append(k);
+      });
+      const bottom = el("div", "sweat");
+      const pic = el("div", "pic"); pic.append(sweatSvg());
+      const say = el("div", "say", L[2]); say.style.fontSize = sizeFor(L[2], 6) + "cqi";
+      bottom.append(pic, say);
+      box.append(top, bottom);
+    } else if (m.format === "mind") {
+      box.append(mindSvg());
+      const sign = el("div", "sign");
+      const t = el("div", "claim", L[0]); t.style.fontSize = sizeFor(L[0], 5.2) + "cqi";
+      sign.append(t, el("div", "tagline", "VERANDER MIJN MENING"));
+      box.append(sign);
     }
     box.append(el("span", "wm", "MEMEFABRIEK.NL"));
     return box;
