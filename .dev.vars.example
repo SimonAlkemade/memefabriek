@@ -1,0 +1,7 @@
+# Copy to .dev.vars for `npm run dev`. Never commit .dev.vars.
+ANTHROPIC_API_KEY=sk-ant-...
+ADMIN_TOKEN=a-long-random-string-of-at-least-16-chars
+IP_SALT=another-random-string
+# Optional spam check (Cloudflare Turnstile). Leave out to switch it off.
+# TURNSTILE_SITE_KEY=
+# TURNSTILE_SECRET=

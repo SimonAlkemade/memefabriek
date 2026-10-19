@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Memefabriek</title>
+<meta name="description" content="Memes van het laatste nieuws. Reageer op elke meme met een meme.">
+<meta property="og:title" content="Memefabriek">
+<meta property="og:description" content="Memes van het laatste nieuws. Reageer op elke meme met een meme.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://memefabriek.nl/">
+<meta name="theme-color" content="#ffc81e">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="hazard" aria-hidden="true"></div>
+<div class="wrap">
+  <header class="mast">
+    <div class="label">memefabriek.nl &middot; draait op het nieuws van vandaag</div>
+    <h1>Meme<span>fabriek</span></h1>
+    <p>Elke meme op de band komt uit een echt nieuwsbericht. Scroll door de lading en reageer op elke meme met een meme van jezelf.</p>
+    <div class="nick field">
+      <label class="label" for="nickname">Je bijnaam</label>
+      <input type="text" id="nickname" maxlength="30" autocomplete="nickname" placeholder="Bijvoorbeeld: Memekoning">
+    </div>
+  </header>
+
+  <section class="press" id="press" aria-labelledby="press-title">
+    <div class="press-head">
+      <h2 id="press-title">Pers een meme uit het nieuws</h2>
+    </div>
+    <div class="press-body">
+      <div class="press-fields">
+        <div class="field">
+          <label class="label" for="np-headline">Nieuwskop</label>
+          <input type="text" id="np-headline" maxlength="200" placeholder="Plak een kop uit het nieuws van vandaag">
+        </div>
+        <div class="field">
+          <label class="label" for="np-url">Bronlink (mag leeg blijven)</label>
+          <input type="url" id="np-url" maxlength="400" placeholder="https://">
+        </div>
+        <div id="np-slot"></div>
+      </div>
+      <div class="field">
+        <span class="label">Voorbeeld</span>
+        <div id="np-preview"></div>
+      </div>
+    </div>
+    <div class="press-actions">
+      <button class="btn" id="np-ai" type="button">Laat Claude hem schrijven</button>
+      <button class="btn primary" id="np-post" type="button">Zet op de band</button>
+      <span class="status" id="np-status" role="status"></span>
+    </div>
+  </section>
+
+  <main class="feed" id="feed" aria-live="polite">
+    <div class="empty" id="feed-empty">
+      <strong>De band draait warm</strong>
+      <span>De memes van vandaag laden hier.</span>
+    </div>
+  </main>
+  <button class="btn more" id="more" type="button" hidden>Oudere memes laden</button>
+
+  <footer>Memes zijn satire over openbaar nieuws. We trappen naar boven, nooit naar slachtoffers. Zie je iets dat niet kan? Gebruik "Melden".</footer>
+</div>
+<div id="turnstile" hidden></div>
+
+<template id="composer-tpl">
+  <div class="press-fields">
+    <div class="row2">
+      <div class="field"><label class="label" data-for="fmt">Formaat</label><select data-k="fmt"></select></div>
+      <div class="field" data-scene-field><label class="label" data-for="scene">Plaatje</label><select data-k="scene"></select></div>
+    </div>
+    <div class="press-fields" data-k="lines"></div>
+  </div>
+</template>
+
+<script src="/meme.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
